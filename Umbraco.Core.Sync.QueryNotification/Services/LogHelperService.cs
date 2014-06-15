@@ -25,12 +25,12 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
             LogHelper.Info<T>(generateMessage);
         }
 
-        public void Error<T>(string message, System.Exception exception)
+        public void Error<T>(string message, Exception exception)
         {
             LogHelper.Error<T>(message, exception);
         }
 
-        public void Error(Type callingType, string message, System.Exception exception)
+        public void Error(Type callingType, string message, Exception exception)
         {
             LogHelper.Error(callingType, message, exception);
         }

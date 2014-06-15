@@ -12,24 +12,51 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
     {
         private readonly IPayloadService _payloadService;
         private readonly ILogService _logService;
-        private readonly IList<ICacheRefresher> _cacheRefreshers;
+        private readonly Lazy<IList<ICacheRefresher>> _cacheRefreshers;
         private readonly ThreadedQueue<Notification> _queue = new ThreadedQueue<Notification>();
 
-        public NotificationRefresherService(IPayloadService payloadService, ILogService logService, IEnumerable<ICacheRefresher> cacheRefreshers)
+        public NotificationRefresherService(IPayloadService payloadService, ILogService logService, Lazy<IList<ICacheRefresher>> cacheRefreshers)
         {
             _payloadService = payloadService;
             _logService = logService;
-            _cacheRefreshers = cacheRefreshers.ToList();
+            _cacheRefreshers = cacheRefreshers;
             _queue.OnEnqueue += Process;
             _queue.OnError += ProcessNotificationException;
         }
 
-        public void Execute(Notification notification)
+        public void ExecuteAsync(Notification notification)
         {
             if (notification == null)
                 return;
 
             _queue.Enqueue(notification);
+        }
+
+        public void Execute(Notification notification)
+        {
+            try
+            {
+                Process(this, notification);
+            }
+            catch (Exception exception)
+            {
+                _logService.Error<NotificationRefresherService>("Exception Executing Notification", exception);
+            }
+        }
+
+        public void RefreshAll()
+        {
+            foreach (var refresher in _cacheRefreshers.Value)
+                refresher.RefreshAll();
+        }
+
+        public void RefreshAll(string id)
+        {
+            var guid = new Guid(id);
+            var refresher = _cacheRefreshers.Value.FirstOrDefault(p => p.UniqueIdentifier == guid);
+            if (refresher == null)
+                throw new NotSupportedException(string.Format("Cache Refresher Not Found With Id {0}", id));
+            refresher.RefreshAll();
         }
 
         void ProcessNotificationException(object sender, Exception exception)
@@ -39,7 +66,7 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
 
         void Process(object sender, Notification notification)
         {
-            var refresher = _cacheRefreshers.FirstOrDefault(p => p.UniqueIdentifier == notification.FactoryId);
+            var refresher = _cacheRefreshers.Value.FirstOrDefault(p => p.UniqueIdentifier == notification.FactoryId);
             if (refresher == null)
                 throw new NotSupportedException(string.Format("Cache Refresher Not Found With Id '{0}'", notification.FactoryId));
 

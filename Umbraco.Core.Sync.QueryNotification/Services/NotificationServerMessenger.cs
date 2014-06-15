@@ -9,14 +9,16 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
     public class NotificationServerMessenger : ServerMessengerBase
     {
         private readonly Func<Database> _databaseFactory;
+        private readonly INotificationReceiverService _receiverService;
         private readonly IPayloadService _payloadService;
         private readonly ILogService _logService;
 
-        public NotificationServerMessenger(Func<Database> databaseFactory, IPayloadService payloadService, ILogService logService)
+        public NotificationServerMessenger(Func<Database> databaseFactory, IPayloadService payloadService, ILogService logService, INotificationReceiverService receiverService)
         {
             _databaseFactory = databaseFactory;
             _payloadService = payloadService;
             _logService = logService;
+            _receiverService = receiverService;
         }
 
         public override void PerformRefresh(IEnumerable<IServerAddress> servers, ICacheRefresher refresher, string jsonPayload)
@@ -56,7 +58,6 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
 
         private void Execute(Guid cacheRefresherId, MessageType messageType, string payload = null)
         {
-            //Why Does Content Get Two Rpc Calls?
             var notification = new Notification
             {
                 CorrelationId = Guid.NewGuid(),
@@ -70,6 +71,7 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
             var db = _databaseFactory();
             db.Insert(notification);
             _logService.Info<NotificationServerMessenger>(string.Format("Notification Created With {0} {1}", notification.CorrelationId, messageType));
+            _receiverService.Execute(notification); //Execute Notification Synchronously
         }
     }
 }

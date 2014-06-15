@@ -192,6 +192,7 @@
     <Compile Include="Models\Notification.cs" />
     <Compile Include="NotificationApplicationEventHandler.cs" />
     <Compile Include="Services\ILogService.cs" />
+    <Compile Include="Services\INotificationReceiverService.cs" />
     <Compile Include="Services\INotificationRefresherService.cs" />
     <Compile Include="Services\IPayloadService.cs" />
     <Compile Include="Services\LogHelperService.cs" />

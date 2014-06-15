@@ -10,13 +10,14 @@ using Umbraco.Core.Sync.QueryNotification.Models;
 
 namespace Umbraco.Core.Sync.QueryNotification.Services
 {
-    public class NotificationReceiverService
+    public class NotificationReceiverService : INotificationReceiverService
     {
         private readonly Func<Database> _databaseFactory;
         private readonly INotificationRefresherService _refresherService;
         private readonly ILogService _logService;
         private readonly IDictionary<Guid, DateTime> _processedNotifications = new ConcurrentDictionary<Guid, DateTime>();
         private DateTime _serviceStarted; //TODO Don't Query All Rpc Calls - Refresh Cache On App Start
+        private readonly object _syncLock = new object();
 
         private const int NotificationQueryWindow = 1; //1 Minute
         private const int NotificationPurgeWindow = 2; //2 Minutes
@@ -36,6 +37,18 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
             Task.Factory.StartNew(Process);
         }
 
+        public void Execute(Notification notification)
+        {
+            lock (_syncLock)
+            {
+                if (_processedNotifications.ContainsKey(notification.CorrelationId))
+                    return;
+                _processedNotifications.Add(notification.CorrelationId, DateTime.UtcNow);
+            }
+            
+            _refresherService.Execute(notification);
+        }
+
         protected void Process()
         {
             var querySql = new Sql()
@@ -49,11 +62,14 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
                 var query = db.QueryWithNotification<Notification>(QueryChanged, NotificationTimeoutWindow, querySql);
                 foreach (var notification in query)
                 {
-                    if (_processedNotifications.ContainsKey(notification.CorrelationId))
-                        continue;
+                    lock (_syncLock)
+                    {
+                        if (_processedNotifications.ContainsKey(notification.CorrelationId))
+                            continue;
+                        _processedNotifications.Add(notification.CorrelationId, DateTime.UtcNow);
+                    }
 
-                    _refresherService.Execute(notification);
-                    _processedNotifications.Add(notification.CorrelationId, DateTime.UtcNow);
+                    _refresherService.ExecuteAsync(notification);
                 }
             }
             catch (Exception ex)
