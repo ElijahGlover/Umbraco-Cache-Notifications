@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using Umbraco.Core.Sync.QueryNotification.Extensions;
@@ -61,7 +62,7 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
 
         void ProcessNotificationException(object sender, Exception exception)
         {
-            _logService.Error<NotificationRefresherService>("Exception Executing Notification", exception);
+            _logService.Error<NotificationRefresherService>("Notification Exception", exception);
         }
 
         void Process(object sender, Notification notification)
@@ -71,6 +72,11 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
                 throw new NotSupportedException(string.Format("Cache Refresher Not Found With Id '{0}'", notification.FactoryId));
 
             var type = (MessageType)notification.NotificationType;
+            var date = DateTime.UtcNow - notification.Timestamp;
+            _logService.Info<NotificationRefresherService>(() => string.Format("Received Notification In {0}ms, Id: {1}, Type:{2}, Payload: {3}", date.Milliseconds, notification.CorrelationId, type, notification.Payload));
+
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
             if (type == MessageType.RefreshAll)
                 ProcessRefreshAll(refresher);
             else if (type == MessageType.RefreshById || type == MessageType.RefreshByInstance)
@@ -79,9 +85,9 @@ namespace Umbraco.Core.Sync.QueryNotification.Services
                 ProcessRemoveById(notification, refresher);
             else if (type == MessageType.RefreshByJson)
                 ProcessRefreshJson(notification, refresher);
+            stopwatch.Stop();
 
-            var date = DateTime.UtcNow - notification.Timestamp;
-            _logService.Info<NotificationRefresherService>(() => string.Format("Received Notification In {0}ms, Id: {1}, Type:{2}, Payload: {3}", date.Milliseconds, notification.CorrelationId, type, notification.Payload));
+            _logService.Info<NotificationRefresherService>(() => string.Format("Notification Executed In {0}ms, Id: {1}", stopwatch.ElapsedMilliseconds, notification.CorrelationId));
         }
 
         void ProcessRefreshById(Notification notification, ICacheRefresher refresher)
