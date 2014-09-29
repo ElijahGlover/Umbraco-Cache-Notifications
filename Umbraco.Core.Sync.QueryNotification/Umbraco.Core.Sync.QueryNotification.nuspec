@@ -1,0 +1,11 @@
+﻿<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Umbraco.RpcQueryNotification</id>
+    <title>Umbraco RPC Query Notification</title>
+    <version>1.0.0</version>
+    <authors>Elijah Glover</authors>
+    <owners>Elijah Glover</owners>
+    <description>Umbraco RPC Query Notification</description>
+  </metadata>
+</package>
